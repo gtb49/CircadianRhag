@@ -1,0 +1,50 @@
+
+---
+title: "Cleaning alldata"
+author: "Geoffrey Broadhead"
+date: "3/31/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###2017 and 2018 datasheets have been combined 
+There are still lots of irrlevant entries and issues with eclosion day calculations, date format etc. 
+1. Mass specific metabolic rates aren't recorded in a saved file/in this data sheet. Need to add those or recalculate. 
+
+AFTER this: 
+1. First step is to remove non-experimental data (collected pupae that didn't go into the experiment), and genetic controls that aren't going to be analyzed here. 
+2. Later will remove incomplete entries (e.g. animals that died without eclosion etc.)
+
+Reading in the full set of 2017 and 2018 data
+```{r message= FALSE, warning = FALSE }
+library(readxl)
+alldata<-read_excel("E:/Hahn Lab/CircadianRhag/DataProcessing/alldata.xlsx")
+```
+
+
+Locating incomplete data
+```{r}
+summary(alldata$treatment) # currently 5540 rows of data, the treatments are "character" and not a factor. 
+alldata$treatment<-as.factor(alldata$treatment) #converting
+#check class of variable again
+summary(alldata$treatment)
+```
+
+Of the 5540 rows of data, 1377 are GC and 219 have no treatment assigned
+Need to remove these.
+
+Should end up with 1988 Room Temp and 1956 Sim Overwintering = 3944 experimental animals (many will not have complete data, more filtering to come)
+
+```{r}
+alldata_removedGCNA<- alldata %>%
+  filter(treatment %in% c("RT", "SO"))
+summary(alldata_removedGCNA$treatment)
+```
+
+Are these 3944 total observations complete data?
+Need: 
+1. Cohort/Collection 
+```{r}

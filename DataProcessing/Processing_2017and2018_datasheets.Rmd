@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 Reading in the original 2017 and 2018 main datasheets straight from Excel. 
 Excel sheet is defined as "2" because the first sheet in both excel files is just maggot collection info - not the circadian experiment
 
-```{r}
+```{r results = "hide", error = FALSE, warning = FALSE }
 library (readxl)
 data2017<-read_excel("E:/Hahn Lab/CircadianRhag/RawData/DataSheets/2017-08-24_rhagoletis_data_sheet.xlsx", sheet = 2)
 data2017
@@ -35,23 +35,27 @@ setdiff(labels2017,labels2018) #What labels are in 2017 but not 2018?
 setdiff(labels2018,labels2017) #What labels are in 2018 but not 2017?
 ```
 ####Interpretation: 
-*Apparently in 2017 both licor analyzers were used to collect respirometry data for metabolic rate analyis. Only 1 used in 2018 or else not recorded.  
-*Year 2 fridge and 'SO' columns appear to be irrelevant - no data ever entered in either column
+1. Licor1 2 refers to which licor was used for respirometry on Day 11 (Li_cor1) and Day 15 (Li_cor2). This was recorded in 2017 In 2018 there are no records for which licor was used on Day 15 - this is the missing Li_cor2 column. Probably will not matter...
 
-*mass_day19, purge_time_3, resp_time_3, and resp_day20 are all related to taking respirometry measures a 3rd time 
-  +Day 19 used on RT and some GC flies - not SO b/c in fridge by that point. 
+2. Year 2 fridge and 'SO' columns appear to be irrelevant - no flies entered a second year of diapause. 
+
+3. mass_day19, purge_time_3, resp_time_3, and resp_day20 are all related to taking respirometry measures a 3rd time 
+  +Day 19 used on RT and some GC flies - not SO b/c they are in fridge by that point. 
   +Will not affect main analyses - day 15 is the relevant time point. 
-*Entrainment enter date is the same as eclosion date in 2017. 
+4. Entrainment enter date is the same as eclosion date in 2017. 
   +2017 does not have entrainment enter date - must be inferred from eclosion records. 
 
 ####Actions
-*Most of the mismatched columns are not necessary for main analyses; metabolic rate analyses are separate
+1. Most of the mismatched columns are not necessary for main analyses; metabolic rate analyses are separate
   +Need to double-check that Entrainment_enter_date in 2018 does actually match eclosion date.
 
 
 ####Checking that entrainment_enter_date *does* always match eclosion in 2018: 
-```{r}
+```{r, message = FALSE, results = "hide"}
 library(tidyverse) #to 'tidy' data
+```
+
+```{r}
 relevantdates2018<-data2018 %>%
   filter(eclosion_date > 0,
          Entrainment_enter_date > 0) #Just pulling the subset of data where those columns both have data
@@ -66,31 +70,7 @@ summary(matched)
 *Add Column to 2017 to make dataframes match (so don't have to re-do things for the different years) __now done__
 
 
-####2017 Eclosion dates - there are gaps
 
-The 2017 eclosion dates have gaps - date only entered once and updated once it changes, so if multiple flies eclosed and entered entrainment on the same day, some will not have the relevant dates needed for analysis. 
-```{r}
-missingdates<-is.na(data2017$eclosion_date) #returns "true" if value = NA 
-summary(missingdates)
-```
-Meaning: 605 animals have eclosion dates. There are 1304 cases where the value = NA
-*The 2017 eclosion dates have gaps - date only entered once and updated once it changes, so if multiple flies eclosed and entered entrainment on the same day, some will not have the relevant dates needed for analysis.
-*This number is needed for circadian analysis because in 2017 this date is the start of entrainment.
-  +Need to 'forward fill' the gaps. 
-  
-####Testing Forward-fill
-```{r}
-testdata2017<- data2017 %>% fill(eclosion_date) #test-filling the gaps in data entry. This does not overwrite any dates that are already entered. It just re-uses the most recent date until it runs into a spot where the data sheet starts using a new date. This matches how the data was originally done in Excel. 
-testdata2017$eclosion_date
-comparedates<-cbind(data2017$eclosion_date,testdata2017$eclosion_date)
-comparedates[1:15,]#showing the first 15 lines of data to confirm how it was filled
-```
-
-Test run worked - apply to full dataset
-Need to forward fill the full 2017 data and match that to eclosion entry date column. 
-```{r}
-data2017<- data2017 %>% fill (eclosion_date) #applying forward fill to full dataset
-```
 
 To use the same analysis code on 2017 and 2018 data, 2017 needs an 'Entrainment_entry_date' column. In 2017 this always matches eclosion date, but it needs to have the same name as 2018. Creating a new column to match 2018 format:
 ```{r}
@@ -101,10 +81,11 @@ matched2017<-if_else(data2017$eclosion_date == data2017$Entrainment_enter_date, 
 summary(matched2017) #Confirming the columns are identical - they are. No returns of "FALSE"
 ```
 New column was added  - now all flies have an ecolosion date and an entrainment date. 
+The 1304 NAs are animals that have no eclosion date. Presumably dead. 
 
 ### Stitching 2017 and 2018 datasheets together so they can be handled with a single analysis
 
-```{r}
+```{r, message = FALSE}
 #cannot combine dataframes if the class of variables is different
 #unequal columns isn't a problem
 all_equal(data2017, data2018)
@@ -122,7 +103,7 @@ compare_df_cols(data2017,data2018, return="mismatch")
   +as.POSIXct will convert most data types into this format
   +strptime function will product POSIXlt which is not the same. 
 
-```{r}
+```{r, message = FALSE, warning = FALSE}
 library(lubridate)
 #converting all 2017 columns to the appropriate format for that variable (dates to POSIXct, numbers should all be numeric etc)
 data2017$Adult_death_date <-as.POSIXct(data2017$Adult_death_date, format="%Y-%m-%d") #date from character to POSIXct datetime
@@ -162,7 +143,7 @@ compare_df_cols(data2017,data2018, return="mismatch")
 Outcome: Now all the formats for 2017 and 2018 are matched. There could still be some mistakes in other columns (incorrect class) but at least they're matched now and the datasheets can be stitched together and handled as one.
 
 #####Now I need to add year as a variable to keep track of 2017 vs 2018 samples for later analysis. 
-```{r}
+```{r, results = "hide"}
 #Adding year as a variable for 2017 samples, across all rows (each data point has a year)
 length(data2017$Ind_ID)
 xyear<-rep(c(2017), each=1909) #creating a vector repeating the value 2017 at 1909 times (matched to # rows)
@@ -181,15 +162,16 @@ data2018$xyear
 
 Now that year is a variable: 
 Stitching together 2017 and 2018 so I don't have to do everything in duplicate anymore. 
-```{r}
+```{r, results= "hide" }
 alldata<-bind_rows(data2017,data2018)
 alldata
 ```
+
 ```{r}
 length(alldata$xyear)
 ```
 ####All data incorporated into a single datasheet (still needs some additional processing)
-*Write new datasheet to .txt file. 
+*Write new datasheet to excel file. 
 
 ```{r} 
 library(writexl)
